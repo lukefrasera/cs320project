@@ -9,12 +9,12 @@ class mainWindow(QMainWindow):
         super(mainWindow,self).__init__()
         self.setWindowTitle("Trans Fat Assassin")
         #self.setWindowIcon(QIcon("lukeicon.png"))
-        self.resize(1280,800)
+        self.resize(1024,1024)
         self.startGame()
 
     def startGame(self):
         self.gameWindow = view()
-        self.gameWindow.resize(1280,800)
+        self.gameWindow.resize(1024,1024)
         self.setCentralWidget(self.gameWindow)
 
 def main():

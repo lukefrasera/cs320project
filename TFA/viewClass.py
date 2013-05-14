@@ -4,7 +4,10 @@ from PyQt4.QtOpenGL import *
 import pygame
 from OpenGL.GL import *
 from OpenGL.GLU import *
+
+from foodObject import food
 import math
+import random
 
 class view(QGLWidget):
     def __init__(self):
@@ -12,6 +15,10 @@ class view(QGLWidget):
         self.time = QTime()
         self.timer = QTimer()
         self.x = 0.0
+        self.fruitList = []
+        self.isTime = 0
+
+
         self.timer.timeout.connect(self.tick)
         
 
@@ -28,6 +35,9 @@ class view(QGLWidget):
 
     def paintGL(self):
         self.createPlane()
+
+        for fruit in self.fruitList:
+            self.drawFruit(fruit.id, fruit.x, fruit.y, fruit.rot)
         
     def loadImages(self):
 
@@ -102,31 +112,51 @@ class view(QGLWidget):
         glVertex2f(1, -1)
 
         glEnd()
-
-        glBindTexture(GL_TEXTURE_2D, self.textureId[0])
-
+    
+    def drawFruit(self, id, x, y, r):
+        glBindTexture(GL_TEXTURE_2D, id)
         glPushMatrix()
-        glTranslatef(self.x, 0.0, 0.0)
+
+        glTranslatef(x, y, 0.0)
+        glRotatef(r, 0, 0, 1)
+
         glBegin(GL_QUADS)
 
         glTexCoord2f(0,0)
-        glVertex2f(-.1, -.15)
+        glVertex2f(-.1, -.1)
 
         glTexCoord2f(0,1)
-        glVertex2f(-.1, .15)
+        glVertex2f(-.1, .1)
 
         glTexCoord2f(1,1)
-        glVertex2f(.1, .15)
+        glVertex2f(.1, .1)
 
         glTexCoord2f(1,0)
-        glVertex2f(.1, -.15)
+        glVertex2f(.1, -.1)
 
         glEnd()
+
         glPopMatrix()
 
 
     def tick(self):
         seconds = self.time.restart() * 0.001
+
+        self.isTime += 1
+        self.isTime = self.isTime % 60
+
+        if self.isTime == 0:
+            self.fruitList.append(food( self.textureId[int(random.random() * len(self.textureId)-.001)] ))
+
+        for fruit in self.fruitList:
+            fruit.animate()
+
+            if fruit.x > 1.1:
+                self.fruitList.remove(fruit)
+
+        print len(self.fruitList)
+
+
 
         
         self.update()
