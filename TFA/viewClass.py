@@ -154,8 +154,6 @@ class view(QGLWidget):
             if fruit.x > 1.1:
                 self.fruitList.remove(fruit)
 
-        print len(self.fruitList)
-
 
 
         
