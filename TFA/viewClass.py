@@ -6,8 +6,15 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 
 from foodObject import food
+
 import math
 import random
+import thread
+import itertools
+import ctypes
+import pykinect
+from pykinect import nui
+from pykinect.nui import JointId
 
 class view(QGLWidget):
     def __init__(self):
@@ -17,7 +24,27 @@ class view(QGLWidget):
         self.x = 0.0
         self.fruitList = []
         self.isTime = 0
+        self.kinecttimer = 0
 
+        self.RIGHT_ARM = (JointId.ShoulderCenter, 
+             JointId.ShoulderRight, 
+             JointId.ElbowRight, 
+             JointId.WristRight, 
+             JointId.HandRight)
+
+
+        self.kinect = nui.Runtime()
+        self.kinect.skeleton_engine.enabled = True
+
+        
+        Tracked = False
+        while not Tracked:
+            frame = self.kinect.skeleton_engine.get_next_frame().SkeletonData
+            for skeleton in frame:
+                if skeleton.eTrackingState == nui.SkeletonTrackingState.TRACKED:
+                    self.position = skeleton.SkeletonPositions[JointId.HandRight]
+                    Tracked = True
+   
 
         self.timer.timeout.connect(self.tick)
         
@@ -38,12 +65,17 @@ class view(QGLWidget):
 
         for fruit in self.fruitList:
             self.drawFruit(fruit.id, fruit.x, fruit.y, fruit.rot)
+
+        self.drawFruit(self.knifeId, self.position.x, self.position.y, 0)
         
     def loadImages(self):
 
         # load BackGround Image into Memory
         imageBG = pygame.image.load("Gameplay.jpg")
         imageBGGL = pygame.image.tostring(imageBG, "RGB", 1)
+
+        kimage = pygame.image.load("knife.png")
+        kimageGL = pygame.image.tostring(kimage, "RGBA", 1)
 
         # load Food images into memory
         foodList = []
@@ -73,6 +105,16 @@ class view(QGLWidget):
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageBG.get_width(), imageBG.get_height(), 0, GL_RGB, GL_UNSIGNED_BYTE, imageBGGL)
+
+        self.knifeId = glGenTextures(1)
+
+        glBindTexture(GL_TEXTURE_2D, self.knifeId)
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kimage.get_width(), kimage.get_height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, kimageGL)
 
         self.textureId = []
 
@@ -141,20 +183,29 @@ class view(QGLWidget):
 
     def tick(self):
         seconds = self.time.restart() * 0.001
-
         self.isTime += 1
         self.isTime = self.isTime % 60
 
         if self.isTime == 0:
             self.fruitList.append(food( self.textureId[int(random.random() * len(self.textureId)-.001)] ))
+        
+        if self.kinect.skeleton_frame_ready:
 
+
+
+            
+            if self.kinecttimer == 0:
+                frame = self.kinect.skeleton_engine.get_next_frame().SkeletonData
+
+                for skeleton in frame:
+                    if skeleton.eTrackingState == nui.SkeletonTrackingState.TRACKED:
+                        self.position = skeleton.SkeletonPositions[JointId.HandRight]
+        self.kinecttimer = (self.kinecttimer + 1)%5
         for fruit in self.fruitList:
             fruit.animate()
 
             if fruit.x > 1.1:
                 self.fruitList.remove(fruit)
-
-
-
-        
+            if abs(fruit.x - self.position.x) < .1 and abs(fruit.y - self.position.y) < .1:
+                self.fruitList.remove(fruit)
         self.update()
