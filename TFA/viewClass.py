@@ -19,6 +19,8 @@ from pykinect.nui import JointId
 class view(QGLWidget):
     def __init__(self):
         super(view, self).__init__()
+
+        # Declare and define variables of view class
         self.time = QTime()
         self.timer = QTimer()
         self.x = 0.0
@@ -26,17 +28,13 @@ class view(QGLWidget):
         self.isTime = 0
         self.kinecttimer = 0
 
-        self.RIGHT_ARM = (JointId.ShoulderCenter, 
-             JointId.ShoulderRight, 
-             JointId.ElbowRight, 
-             JointId.WristRight, 
-             JointId.HandRight)
-
-
+        # generate the kinect runtime environment
         self.kinect = nui.Runtime()
+
+        # enable the skeleton tracking engine on the kinect
         self.kinect.skeleton_engine.enabled = True
 
-        
+        # wait until skeleton is succesfully tracked by kinect before program starts
         Tracked = False
         while not Tracked:
             frame = self.kinect.skeleton_engine.get_next_frame().SkeletonData
@@ -46,10 +44,13 @@ class view(QGLWidget):
                     Tracked = True
    
 
+        # link timer to Qt for 60 FPS: tick update function will be called
         self.timer.timeout.connect(self.tick)
         
 
     def initializeGL(self):
+
+        # initializee opengl: function is ran once to prep opengl for program
         glEnable(GL_TEXTURE_2D)
         glDisable(GL_DEPTH_TEST)
         glEnable(GL_BLEND)
@@ -61,11 +62,16 @@ class view(QGLWidget):
         self.timer.start(1000/60)
 
     def paintGL(self):
+        # draw all opengl to screen
+
+        # paint the BG to screen
         self.createPlane()
 
+        # paint each fruit to the screen
         for fruit in self.fruitList:
             self.drawFruit(fruit.id, fruit.x, fruit.y, fruit.rot)
 
+        # draw the pointer to the screen
         self.drawFruit(self.knifeId, self.position.x, self.position.y, 0)
         
     def loadImages(self):
@@ -74,6 +80,7 @@ class view(QGLWidget):
         imageBG = pygame.image.load("Gameplay.jpg")
         imageBGGL = pygame.image.tostring(imageBG, "RGB", 1)
 
+        # load pointer image
         kimage = pygame.image.load("knife.png")
         kimageGL = pygame.image.tostring(kimage, "RGBA", 1)
 
@@ -134,6 +141,8 @@ class view(QGLWidget):
         
 
     def createPlane(self):
+
+        # GL COMMANDS TO DRAW QUAD POLYGON: BG
         glClear(GL_COLOR_BUFFER_BIT)
 
         glEnable( GL_TEXTURE_2D )
@@ -156,6 +165,7 @@ class view(QGLWidget):
         glEnd()
     
     def drawFruit(self, id, x, y, r):
+        # GL COMMANDS TO DRAW QUAD POLYGON: FRUIT
         glBindTexture(GL_TEXTURE_2D, id)
         glPushMatrix()
 
@@ -182,30 +192,45 @@ class view(QGLWidget):
 
 
     def tick(self):
+
+        # HANDLE UPDATE OF SCREEN AND GAME
+
+        # RESTART THE TIMER
         seconds = self.time.restart() * 0.001
         self.isTime += 1
         self.isTime = self.isTime % 60
 
+        # GENREATE NEW FRUIT EVERY FEW SECONDS
         if self.isTime == 0:
             self.fruitList.append(food( self.textureId[int(random.random() * len(self.textureId)-.001)] ))
         
+        # CHECK IF CONNECT IS READY TO GIVE NEW FRAME DATA
         if self.kinect.skeleton_frame_ready:
 
 
 
-            
+            # DONT GET DATA EVERY FRAME
             if self.kinecttimer == 0:
+
+                # GET SKELETON DATA
                 frame = self.kinect.skeleton_engine.get_next_frame().SkeletonData
 
                 for skeleton in frame:
                     if skeleton.eTrackingState == nui.SkeletonTrackingState.TRACKED:
+
+                        # FIND THE POSITION OF THE RIGHT HAND
                         self.position = skeleton.SkeletonPositions[JointId.HandRight]
         self.kinecttimer = (self.kinecttimer + 1)%5
         for fruit in self.fruitList:
             fruit.animate()
 
+            # IF THE FRUIT IS OFF SCREEN DELETE IT
             if fruit.x > 1.1:
                 self.fruitList.remove(fruit)
+
+            # CHECK IF HAND IS NEAR FRUIT: IF SO DELETE THE FRUIT
             if abs(fruit.x - self.position.x) < .1 and abs(fruit.y - self.position.y) < .1:
                 self.fruitList.remove(fruit)
+
+        # UPDATE THE OPENGL
         self.update()
